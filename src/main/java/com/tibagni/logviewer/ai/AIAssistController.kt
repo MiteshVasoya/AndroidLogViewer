@@ -1,11 +1,10 @@
 package com.tibagni.logviewer.ai
 
-import com.tibagni.logviewer.ServiceLocator.logViewerPrefs
-import com.tibagni.logviewer.ai.ollama.Config
 import com.vladsch.flexmark.html.HtmlRenderer
 import com.vladsch.flexmark.parser.Parser
-import io.github.ollama4j.models.generate.OllamaStreamHandler
-import io.github.ollama4j.utils.OptionsBuilder
+import dev.langchain4j.model.chat.response.ChatResponse
+import dev.langchain4j.model.chat.response.StreamingChatResponseHandler
+import java.util.concurrent.CompletableFuture
 import javax.swing.JOptionPane
 import javax.swing.SwingUtilities
 
@@ -19,6 +18,8 @@ class AIAssistController(
 ) {
   private val parser = Parser.builder().build()
   private val renderer = HtmlRenderer.builder().build()
+  // Use a streaming chat model for AI responses
+  private val aiStreamingChatModel = ollamaStreamingChatModel
 
   // Initializes the controller with the view and sets up action listeners
   init {
@@ -31,12 +32,6 @@ class AIAssistController(
     val userMessage = view.inputField.text.trim()
     if (userMessage.isEmpty()) return
 
-    // Check if the Ollama server is reachable before sending the messages
-    if (!Config.isServerReachable()) {
-      JOptionPane.showMessageDialog(view, "Ollama server is not reachable.", "Error", JOptionPane.ERROR_MESSAGE)
-      return
-    }
-
     // Append the user's message to the chat history and clear the input field
     appendMarkdown("**$userMessage**")
     view.inputField.text = ""
@@ -45,30 +40,41 @@ class AIAssistController(
 
     // Start a new thread to handle the AI response
     Thread {
-      val ollama = Config.getAPI()
-      val options = OptionsBuilder().build()
+      val futureResponse = CompletableFuture<ChatResponse>()
 
-      val streamHandler = OllamaStreamHandler { token ->
-        SwingUtilities.invokeLater {
-          updateAIMessage(token)
-        }
-      }
+      var partialResponseHistory = ""
+      aiStreamingChatModel.chat(
+        userMessage,
+        object : StreamingChatResponseHandler {
+          override fun onPartialResponse(partialResponse: String?) {
+            SwingUtilities.invokeLater {
+              partialResponseHistory += partialResponse
+              updateAIMessage(partialResponseHistory)
+            }
+          }
 
-      try {
-        val result = ollama.generate(logViewerPrefs.aiModel, userMessage, false, options, streamHandler)
-        SwingUtilities.invokeLater {
-          appendMarkdown("${result.response}")
+          override fun onCompleteResponse(completeResponse: ChatResponse?) {
+            futureResponse.complete(completeResponse)
+            SwingUtilities.invokeLater {
+              appendMarkdown("${completeResponse?.aiMessage()?.text()}")
+              appendBreak()
+              updateInputStatus(true)
+            }
+          }
+
+          override fun onError(error: Throwable) {
+            futureResponse.completeExceptionally(error)
+            SwingUtilities.invokeLater {
+              JOptionPane.showMessageDialog(view, "AI server is not reachable.", "Error", JOptionPane.ERROR_MESSAGE)
+              appendMarkdown("[Error: ${error.message}]")
+              appendBreak()
+              updateInputStatus(true)
+            }
+          }
         }
-      } catch (ex: Exception) {
-        SwingUtilities.invokeLater {
-          appendMarkdown("[Error: ${ex.message}]")
-        }
-      } finally {
-        SwingUtilities.invokeLater {
-          appendBreak()
-          updateInputStatus(true)
-        }
-      }
+      )
+
+      futureResponse.join()
     }.start()
   }
 
