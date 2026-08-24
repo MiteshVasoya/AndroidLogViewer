@@ -1,32 +1,28 @@
-buildscript {
-    ext {
-        kotlin_version = '1.5.21'
-        kotlinx_version = '1.5.2'
-        junit_version = '4.12'
-        mockito_version = '3.12.4'
-        jgoodies_version = '1.6.0'
-        json_version = '20180813'
-        commonsio_version = '2.6'
-        apache_commons_version = '3.0'
-        flatlaf_version = '1.5'
-        jacoco_tool_version = '0.8.7'
-        shadowjar_version = '6.1.0'
-        testlogger_version = '1.7.0'
-        coveralls_version = '2.12.0'
-    }
-
-    repositories {
-        mavenCentral()
-    }
-}
+import java.text.SimpleDateFormat
 
 plugins {
-    id 'com.github.johnrengelman.shadow' version "$shadowjar_version"
-    id 'java'
-    id "org.jetbrains.kotlin.jvm" version "$kotlin_version"
-    id 'com.adarshr.test-logger' version "$testlogger_version"
+    id 'java-library'
+    id "org.jetbrains.kotlin.jvm" version "1.9.20"
+    id 'com.adarshr.test-logger' version "3.2.0"
     id 'jacoco'
-    id 'com.github.kt3k.coveralls' version "$coveralls_version"
+    //id 'com.github.kt3k.coveralls' version "$coveralls_version"
+    //id 'com.github.johnrengelman.shadow' version "7.1.2"
+}
+
+ext {
+    kotlin_version = '1.9.20'
+    kotlinx_version = '1.8.0'
+    junit_version = '4.13.1'
+    mockito_version = '3.12.4'
+    jgoodies_version = '1.6.0'
+    json_version = '20231013'
+    commonsio_version = '2.14.0'
+    apache_commons_version = '3.18.0'
+    flatlaf_version = '1.5'
+    jacoco_tool_version = '0.8.7'
+    shadowjar_version = '7.1.2' // Keep the version here for reference, but the plugin is commented out
+    testlogger_version = '3.2.0'
+    coveralls_version = '2.12.0'
 }
 
 jacoco {
@@ -35,8 +31,12 @@ jacoco {
 
 jacocoTestReport {
     reports {
-        xml.enabled = true // coveralls plugin depends on xml format report
-        html.enabled = true
+        xml {
+            required = true // coveralls plugin depends on xml format report
+        }
+        html {
+            required = true
+        }
     }
     afterEvaluate {
         // Exclude files that cannot be tested by jUnit (UI, Swing, ...)
@@ -57,7 +57,7 @@ jacocoTestReport {
                     'com/tibagni/logviewer/filter/regex/RegexEditorDialog*',
                     'com/tibagni/logviewer/log/LogCellRenderer*',
                     'com/tibagni/logviewer/logger/*',
-                    'com/tibagni/logviewer/preferences/LogViewerPreferencesDialog*',
+                    'com/tibagni/logviewer.preferences.LogViewerPreferencesDialog*',
                     'com/tibagni/logviewer/theme/*',
                     'com/tibagni/logviewer/updates/UpdateAvailableDialog*',
                     'com/tibagni/logviewer/util/SwingUtils*',
@@ -85,7 +85,7 @@ jar {
     manifest {
         attributes(
                 'Built-By'       : System.properties['user.name'],
-                'Build-Timestamp': new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ").format(new Date()),
+                'Build-Timestamp': new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ").format(new Date()),
                 'Created-By'     : "Gradle ${gradle.gradleVersion}",
                 'Build-Jdk'      : "${System.properties['java.version']} (${System.properties['java.vendor']} ${System.properties['java.vm.version']})",
                 'Build-OS'       : "${System.properties['os.name']} ${System.properties['os.arch']} ${System.properties['os.version']}",
@@ -96,14 +96,24 @@ jar {
 }
 
 dependencies {
-    testImplementation group: 'junit', name: 'junit', version: "$junit_version"
+    testImplementation "junit:junit:$junit_version"
     testImplementation "org.mockito:mockito-core:$mockito_version"
-    implementation group: 'com.jgoodies', name: 'jgoodies-forms', version: "$jgoodies_version"
-    implementation group: 'org.json', name: 'json', version: "$json_version"
-    implementation group: 'commons-io', name: 'commons-io', version: "$commonsio_version"
-    implementation group: 'org.apache.commons', name: 'commons-lang3', version: "$apache_commons_version"
-    implementation group: 'com.formdev', name: 'flatlaf', version: "$flatlaf_version"
+    implementation "com.jgoodies:jgoodies-forms:$jgoodies_version"
+    implementation "org.json:json:$json_version"
+    implementation "commons-io:commons-io:$commonsio_version"
+    implementation "org.apache.commons:commons-lang3:$apache_commons_version"
+    implementation "com.formdev:flatlaf:$flatlaf_version"
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinx_version"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-swing:$kotlinx_version"
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    kotlinOptions {
+        jvmTarget = "21"
+    }
 }
