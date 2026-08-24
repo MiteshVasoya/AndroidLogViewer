@@ -35,6 +35,9 @@ public class LogViewerPresenterImpl extends AsyncPresenter implements LogViewerP
   private final MyLogsRepository myLogsRepository;
   private final FiltersRepository filtersRepository;
 
+  private final FilterCoordinator filterCoordinator;
+  private final LogLoader logLoader;
+
   LogViewerPresenterImpl(LogViewerPresenterView view,
                          LogViewerPreferences userPrefs,
                          LogsRepository logsRepository,
@@ -51,6 +54,30 @@ public class LogViewerPresenterImpl extends AsyncPresenter implements LogViewerP
     cachedAllowedFilteredLogs = new ArrayList<>();
     filteredLogs = new ArrayList<>();
     allowedStreamsMap = new HashMap<>();
+
+    filterCoordinator = new FilterCoordinator(
+        this,
+        view,
+        userPrefs,
+        filtersRepository,
+        logsRepository,
+        allowedStreamsMap,
+        filteredLogs,
+        cachedAllowedFilteredLogs,
+        unsavedFilterGroups
+    );
+
+    logLoader = new LogLoader(
+        this,
+        view,
+        userPrefs,
+        logsRepository,
+        myLogsRepository,
+        allowedStreamsMap,
+        filteredLogs,
+        cachedAllowedFilteredLogs,
+        filterCoordinator
+    );
   }
 
   @Override
@@ -71,119 +98,37 @@ public class LogViewerPresenterImpl extends AsyncPresenter implements LogViewerP
 
   @Override
   public void addFilter(String group, Filter newFilter) {
-    addFilter(group, newFilter, false);
+    filterCoordinator.addFilter(group, newFilter);
   }
 
   @Override
   public void addFilter(String group, Filter newFilter, boolean ignoreReapply) {
-    if (!StringUtils.isEmpty(group) && newFilter != null) {
-      filtersRepository.addFilter(group, newFilter);
-      view.configureFiltersList(filtersRepository.getCurrentlyOpenedFilters());
-      checkForUnsavedChanges();
-
-      if (!ignoreReapply && userPrefs.getReapplyFiltersAfterEdit()) {
-        // Make sure to add the new filter to the 'applied' list
-        // so it gets applied now (We always add to the end, so
-        // just add the last index as well)
-        newFilter.setApplied(true);
-        applyFilters();
-      }
-    }
+    filterCoordinator.addFilter(group, newFilter, ignoreReapply);
   }
 
   @Override
   public String addGroup(String group) {
-    if (!StringUtils.isEmpty(group)) {
-      String addedGroup = filtersRepository.addGroup(group);
-      view.configureFiltersList(filtersRepository.getCurrentlyOpenedFilters());
-      return addedGroup;
-    }
-
-    return null;
+    return filterCoordinator.addGroup(group);
   }
 
   @Override
   public List<String> getGroups() {
-    return new ArrayList<>(filtersRepository.getCurrentlyOpenedFilters().keySet());
+    return filterCoordinator.getGroups();
   }
 
   @Override
   public void removeFilters(String group, int[] indices) {
-    List<Filter> deletedFilters = filtersRepository.deleteFilters(group, indices);
-    boolean shouldReapply = deletedFilters.stream().anyMatch(Filter::isApplied);
-    view.configureFiltersList(filtersRepository.getCurrentlyOpenedFilters());
-
-    // Do not mark as unsaved changes if all filters were removed.
-    // User will not save an empty filter set
-    if (!filtersRepository.getCurrentlyOpenedFilters().isEmpty()) {
-      checkForUnsavedChanges();
-    }
-
-    // Only re-apply the filters if the at least one of the removed filters was applied
-    if (shouldReapply) {
-      applyFilters();
-    }
+    filterCoordinator.removeFilters(group, indices);
   }
 
   @Override
   public void moveFilters(String origGroup, String destGroup, int[] indices) {
-    if (StringUtils.areEquals(origGroup, destGroup)) {
-      return;
-    }
-
-    List<Filter> movingFilters = filtersRepository.deleteFilters(origGroup, indices);
-    filtersRepository.addFilters(destGroup, movingFilters);
-
-    boolean shouldReapply = movingFilters.stream().anyMatch(Filter::isApplied);
-    view.configureFiltersList(filtersRepository.getCurrentlyOpenedFilters());
-    checkForUnsavedChanges();
-
-    // Only re-apply the filters if the at least one of the moved filters was applied
-    if (shouldReapply) {
-      applyFilters();
-    }
+    filterCoordinator.moveFilters(origGroup, destGroup, indices);
   }
 
   @Override
   public void removeGroup(String group) {
-    if (!StringUtils.isEmpty(group)) {
-      boolean unsavedChange = unsavedFilterGroups.contains(group);
-
-      if (unsavedChange) {
-        UserSelection userSelection = view.showAskToSaveFilterDialog(group);
-        if (userSelection == UserSelection.CONFIRMED) {
-          saveFilters(group);
-        } else if (userSelection == UserSelection.CANCELLED) {
-          // User canceled. Abort!
-          return;
-        }
-      }
-
-      List<Filter> filtersFromGroup = filtersRepository.getCurrentlyOpenedFilters().get(group);
-      File groupFile = filtersRepository.getCurrentlyOpenedFilterFiles().get(group);
-      if (filtersFromGroup != null) {
-        filtersRepository.deleteGroup(group);
-        view.configureFiltersList(filtersRepository.getCurrentlyOpenedFilters());
-        checkForUnsavedChanges();
-
-        boolean shouldReapply = filtersFromGroup.stream().anyMatch(Filter::isApplied);
-        if (shouldReapply) {
-          applyFilters();
-        }
-      }
-
-      // Remove this group from the last filters path config
-      if (groupFile != null) {
-        File[] currentSavedPaths = userPrefs.getLastFilterPaths();
-        if (currentSavedPaths.length > 0) {
-          int i = ArrayUtils.indexOf(currentSavedPaths, groupFile);
-          if (i >= 0) {
-            currentSavedPaths = ArrayUtils.remove(currentSavedPaths, i);
-            userPrefs.setLastFilterPaths(currentSavedPaths);
-          }
-        }
-      }
-    }
+    filterCoordinator.removeGroup(group);
   }
 
   @Override
@@ -396,83 +341,23 @@ public class LogViewerPresenterImpl extends AsyncPresenter implements LogViewerP
   }
 
   @Override
-  public void  loadLogs(File[] logFiles) {
-    loadLogs(logFiles, StandardCharsets.UTF_8);
+  public void loadLogs(File[] logFiles) {
+    logLoader.loadLogs(logFiles);
   }
 
   @Override
-  public void  loadLogs(File[] logFiles, Charset charset) {
-    // Clean up the filters info as it does not apply anymore
-    cleanUpFilterTempInfo();
-    doAsync(() -> {
-      try {
-        logsRepository.openLogFiles(logFiles, charset, this::updateAsyncProgress);
-        rebuildLogStreamsMap(logsRepository.getAvailableStreams());
-        filteredLogs.clear();
-        cachedAllowedFilteredLogs.clear();
-        cachedAllowedFilteredLogs.addAll(excludeNonAllowedStreams(filteredLogs));
-
-        List<String> skippedLogs = logsRepository.getLastSkippedLogFiles();
-        Map<String, String> bugReports = logsRepository.getPotentialBugReports();
-        final boolean myLogsChanged = updateMyLogs();
-        doOnUiThread(() -> {
-          view.showFilteredLogs(cachedAllowedFilteredLogs);
-          view.showLogs(logsRepository.getCurrentlyOpenedLogs());
-          view.showAvailableLogStreams(allowedStreamsMap.keySet());
-          // In case something changed with 'My Logs', make sure to update the UI as well
-          if (myLogsChanged) {
-            view.showMyLogs(myLogsRepository.getLogs());
-          }
-
-          if (logsRepository.getCurrentlyOpenedLogs().size() > 0) {
-            String logsPath = FilenameUtils.getFullPath(logFiles[0].getAbsolutePath());
-            view.showCurrentLogsLocation(logsPath);
-            long appliedFiltersCount = getFiltersThat(Filter::isApplied).size();
-            if (appliedFiltersCount > 0) {
-              applyFilters();
-            }
-
-            // Only show this skipped logs if there are other logs loaded
-            // otherwise the "No logs found" is enough
-            if (!skippedLogs.isEmpty()) {
-              // Some logs were not parsed, let the UI know which
-              view.showSkippedLogsMessage(skippedLogs);
-            }
-
-            if (bugReports.isEmpty()) {
-              view.closeCurrentlyOpenedBugReports();
-            } else {
-              // We only support opening one bugreport for now
-              Map.Entry<String, String> entry = bugReports.entrySet().iterator().next();
-              view.showOpenPotentialBugReport(entry.getKey(), entry.getValue());
-            }
-          } else {
-            view.showCurrentLogsLocation(null);
-            view.showErrorMessage("No logs found");
-          }
-        });
-      } catch (OpenLogsException e) {
-        doOnUiThread(() -> view.showErrorMessage(e.getMessage()));
-      }
-    });
+  public void loadLogs(File[] logFiles, Charset charset) {
+    logLoader.loadLogs(logFiles, charset);
   }
 
   @Override
   public void refreshLogsWithDifferentCharset(Charset charset) {
-    if (logsRepository.getCurrentlyOpenedLogFiles().isEmpty()) {
-      view.showErrorMessage("No logs currently open");
-    } else {
-      loadLogs(logsRepository.getCurrentlyOpenedLogFiles().toArray(new File[0]), charset);
-    }
+    logLoader.refreshLogsWithDifferentCharset(charset);
   }
 
   @Override
   public void refreshLogs() {
-    if (logsRepository.getCurrentlyOpenedLogFiles().isEmpty()) {
-      view.showErrorMessage("No logs to be refreshed");
-    } else {
-      loadLogs(logsRepository.getCurrentlyOpenedLogFiles().toArray(new File[0]));
-    }
+    logLoader.refreshLogs();
   }
 
   @Override
@@ -493,60 +378,24 @@ public class LogViewerPresenterImpl extends AsyncPresenter implements LogViewerP
     }
   }
 
-  private void rebuildLogStreamsMap(Set<LogStream> availableStreams) {
-    this.allowedStreamsMap.clear();
-    for (LogStream s : availableStreams) {
-      this.allowedStreamsMap.put(s, true);
-    }
-  }
-
   @Override
   public void applyFilters() {
-    testStats.applyFiltersCallCount++;
-    if (logsRepository.getCurrentlyOpenedLogs().isEmpty()) {
-      doOnUiThread(() -> view.showFilteredLogs(cachedAllowedFilteredLogs));
-      return;
-    }
-
-    // Before applying a new filter, make sure the last one is cleaned up
-    // (if there is an existing one)
-    cleanUpFilterInfoFromLogEntries();
-    cleanUpFilterTempInfo();
-
-    List<Filter> toApply = getFiltersThat(Filter::isApplied);
-    doAsync(() -> {
-      filteredLogs.clear();
-      filteredLogs.addAll(Filters.applyMultipleFilters(
-          logsRepository.getCurrentlyOpenedLogs(), toApply.toArray(new Filter[0]), this::updateAsyncProgress));
-      cachedAllowedFilteredLogs.clear();
-      cachedAllowedFilteredLogs.addAll(excludeNonAllowedStreams(filteredLogs));
-      updateFiltersContextInfo();
-      doOnUiThread(() -> view.showFilteredLogs(cachedAllowedFilteredLogs));
-    });
+    filterCoordinator.applyFilters();
   }
 
   @Override
   public void filterEdited(Filter filter) {
-    checkForUnsavedChanges();
-
-    if (userPrefs.getReapplyFiltersAfterEdit()) {
-      // Make sure the edited filter will also be re-applied.
-      // If it was not previously applied, apply now
-      filter.setApplied(true);
-      applyFilters();
-    }
+    filterCoordinator.filterEdited(filter);
   }
 
   @Override
   public void setAllFiltersApplied(String group, boolean isApplied) {
-    forEachFilterInGroup(group, filter -> filter.setApplied(isApplied));
-    applyFilters();
+    filterCoordinator.setAllFiltersApplied(group, isApplied);
   }
 
   @Override
   public void setAllFiltersApplied(boolean isApplied) {
-    forEachFilter(filter -> filter.setApplied(isApplied));
-    applyFilters();
+    filterCoordinator.setAllFiltersApplied(isApplied);
   }
 
   @Override
@@ -893,6 +742,10 @@ public class LogViewerPresenterImpl extends AsyncPresenter implements LogViewerP
     }
 
     applyFilters();
+  }
+
+  void updateProgress(int progress, String note) {
+    updateAsyncProgress(progress, note);
   }
 
   // Test helpers
