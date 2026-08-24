@@ -28,4 +28,14 @@ object ServiceLocator {
       )
     )
   }
+
+  fun createLogViewerPresenter(view: LogViewerPresenterView): LogViewerPresenter {
+    return LogViewerPresenterImpl(
+      view,
+      logViewerPrefs,
+      logsRepository,
+      myLogsRepository,
+      filtersRepository
+    )
+  }
 }

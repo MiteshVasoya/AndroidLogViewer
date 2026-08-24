@@ -135,13 +135,7 @@ class LogViewerViewImpl(private val mainView: MainView, initialLogFiles: Set<Fil
     buildUi()
     val userPrefs = ServiceLocator.logViewerPrefs
 
-    presenter = LogViewerPresenterImpl(
-      this,
-      userPrefs,
-      ServiceLocator.logsRepository,
-      ServiceLocator.myLogsRepository,
-      ServiceLocator.filtersRepository
-    )
+    presenter = ServiceLocator.createLogViewerPresenter(this)
     presenter.init()
 
     logRenderer = LogCellRenderer()
