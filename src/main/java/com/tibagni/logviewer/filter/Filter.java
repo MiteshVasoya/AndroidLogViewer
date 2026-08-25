@@ -1,6 +1,7 @@
 package com.tibagni.logviewer.filter;
 
 import com.tibagni.logviewer.log.LogEntry;
+import com.tibagni.logviewer.log.LogEntryFilter;
 import com.tibagni.logviewer.log.LogLevel;
 import com.tibagni.logviewer.log.LogStream;
 import com.tibagni.logviewer.util.StringUtils;
@@ -10,7 +11,7 @@ import java.util.*;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-public class Filter {
+public class Filter implements LogEntryFilter {
   public static final String FILE_EXTENSION = "filter";
 
   private boolean applied;

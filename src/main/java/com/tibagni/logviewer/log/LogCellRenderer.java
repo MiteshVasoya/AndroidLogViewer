@@ -1,7 +1,6 @@
 package com.tibagni.logviewer.log;
 
 import com.tibagni.logviewer.ServiceLocator;
-import com.tibagni.logviewer.filter.Filter;
 import com.tibagni.logviewer.logger.Logger;
 import com.tibagni.logviewer.theme.LogViewerThemeManager;
 import com.tibagni.logviewer.util.StringUtils;
@@ -150,7 +149,7 @@ public class LogCellRenderer extends JPanel implements TableCellRenderer {
       textView.setBackground(background);
     }
 
-    Filter appliedFilter = logEntry.getAppliedFilter();
+    LogEntryFilter appliedFilter = logEntry.getAppliedFilter();
     Color filteredColor = appliedFilter != null ? appliedFilter.getColor() : null;
     if (!isSelected && filteredColor != null) {
       textView.setForeground(filteredColor);
@@ -166,7 +165,7 @@ public class LogCellRenderer extends JPanel implements TableCellRenderer {
     highlightMatchedText(logEntry.getSearchFilter(), highlighter, logEntry, isSelected, true);
   }
 
-  private void highlightMatchedText(Filter filter, Highlighter highlighter, LogEntry logEntry, boolean isSelected, boolean isForSearch) {
+  private void highlightMatchedText(LogEntryFilter filter, Highlighter highlighter, LogEntry logEntry, boolean isSelected, boolean isForSearch) {
     String hlText = filter != null ? filter.getPatternString() : null;
     if (!StringUtils.isEmpty(hlText)) {
       try {
