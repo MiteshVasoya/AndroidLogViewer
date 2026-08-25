@@ -26,6 +26,9 @@ public class Filters {
     List<LogEntry> filtered = new Vector<>();
     final Progress progress = new Progress(input.size());
     input.stream().parallel().forEach(entry -> {
+      if (Thread.currentThread().isInterrupted()) {
+        throw new RuntimeException(new InterruptedException("Filter application cancelled."));
+      }
       Filter appliedFilter = getAppliedFilter(entry, filters);
       if (appliedFilter != null) {
         entry.setAppliedFilter(appliedFilter);

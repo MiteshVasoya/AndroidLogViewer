@@ -9,14 +9,18 @@ public abstract class AsyncPresenter {
   private final AsyncPresenterView asyncView;
   private ExecutorService bgExecutorService = Executors.newSingleThreadExecutor();
   private Executor uiExecutor = SwingUtilities::invokeLater;
+  private java.util.concurrent.Future<?> currentTask = null;
 
   protected AsyncPresenter(AsyncPresenterView asyncView) {
     this.asyncView = asyncView;
   }
 
   protected void doAsync(Runnable runnable) {
+    if (currentTask != null) {
+      currentTask.cancel(true);
+    }
     uiExecutor.execute(asyncView::showStartLoading);
-    bgExecutorService.execute(runnable);
+    currentTask = bgExecutorService.submit(runnable);
   }
 
   protected void updateAsyncProgress(int progress, String note) {

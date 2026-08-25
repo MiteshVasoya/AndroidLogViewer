@@ -49,6 +49,9 @@ public class LogParser {
 
     int logsRead = 0;
     for (String log : availableLogs) {
+      if (Thread.currentThread().isInterrupted()) {
+        throw new LogReaderException("Log parsing was cancelled.");
+      }
       try {
         int progress = logsRead++ * 90 / availableLogs.size();
         progressReporter.onProgress(progress, "Reading " + log + "...");
@@ -127,6 +130,9 @@ public class LogParser {
 
     StringBuilder currentLogLine = null;
     for (String line : lines) {
+      if (Thread.currentThread().isInterrupted()) {
+        throw new RuntimeException("Log parsing cancelled.");
+      }
       // Sometimes a line can contain a lot of NULL chars at the end, making it fail when trying to open the log
       // (as these NULL chars will make the line length too long). So check here if the line has NULL chars
       // and remove them to avoid failing to open valid log files
