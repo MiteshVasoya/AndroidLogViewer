@@ -33,7 +33,7 @@ public class CheckBoxList<E> extends JList<E> {
   }
 
   private void notifyItemCheckChanged(int index) {
-    java.util.List<E> elements = CommonUtils.listOf(getModel().getElementAt(index));
+    java.util.List<E> elements = java.util.List.of(getModel().getElementAt(index));
     if (listener != null) {
       listener.onItemsCheckChanged(elements);
       repaint(getCellBounds(index, index));
