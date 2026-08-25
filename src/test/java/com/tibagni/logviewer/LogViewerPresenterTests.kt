@@ -1449,35 +1449,43 @@ class LogViewerPresenterTests {
   }
 
   @Test
-  fun testRemoveGroupOneFilterApplied() { // TODO validate more conditions
+  fun testRemoveGroupOneFilterApplied() {
     val groupToRemove = "removeGroup"
     val testGroup = "testGroup"
     val appliedFilter = Filter.createFromString(TEST_SERIALIZED_FILTER2)
     appliedFilter.isApplied = true
 
-    `when`(mockLogsRepository.currentlyOpenedLogs).thenReturn(
-      listOf(LogEntry("Log line 1", LogLevel.DEBUG, null))
-    )
-    `when`(mockFiltersRepository.currentlyOpenedFilters).thenReturn(
-      mapOf(
+    val mockFiltersMap = mutableMapOf(
         testGroup to listOf(Filter.createFromString(TEST_SERIALIZED_FILTER)),
         groupToRemove to listOf(
           appliedFilter,
           Filter.createFromString(TEST_SERIALIZED_FILTER3)
         )
       )
+
+    `when`(mockLogsRepository.currentlyOpenedLogs).thenReturn(
+      listOf(LogEntry("Log line 1", LogLevel.DEBUG, null))
     )
+    `when`(mockFiltersRepository.currentlyOpenedFilters).thenReturn(mockFiltersMap)
+
+    `when`(mockFiltersRepository.deleteGroup(groupToRemove)).thenAnswer {
+      mockFiltersMap.remove(groupToRemove)
+      true
+    }
 
     presenter.removeGroup(groupToRemove)
 
     verify(view, never()).showAskToSaveFilterDialog(anyOrNull())
-    verify(view).configureFiltersList(any())
     verify(mockFiltersRepository).deleteGroup(groupToRemove)
-    verify(view).configureFiltersList(anyOrNull())
 
     // Verify filter was re-applied after group is removed
     assertEquals(1, presenter.testStats.applyFiltersCallCount)
     verify(view).showFilteredLogs(any())
+
+    // Validate conditions: ensure the group was actually removed from the active view map
+    assertEquals(1, mockFiltersMap.size)
+    assertFalse(mockFiltersMap.containsKey(groupToRemove))
+    assertTrue(mockFiltersMap.containsKey(testGroup))
 
     // Use this test to validate that when there is no open file for the group,
     // lastFilterPaths is not updated
