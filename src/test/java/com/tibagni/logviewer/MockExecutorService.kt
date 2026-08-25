@@ -35,11 +35,12 @@ class MockExecutorService : ExecutorService {
     }
 
     override fun <T : Any?> invokeAny(tasks: MutableCollection<out Callable<T>>): T {
-        TODO("not implemented")
+        val first = tasks.firstOrNull() ?: throw IllegalArgumentException("Empty tasks collection")
+        return first.call()
     }
 
     override fun <T : Any?> invokeAny(tasks: MutableCollection<out Callable<T>>, timeout: Long, unit: TimeUnit): T {
-        TODO("not implemented")
+        return invokeAny(tasks)
     }
 
     override fun isTerminated(): Boolean {
@@ -47,11 +48,16 @@ class MockExecutorService : ExecutorService {
     }
 
     override fun <T : Any?> invokeAll(tasks: MutableCollection<out Callable<T>>): MutableList<Future<T>> {
-        TODO("not implemented")
+        val futures = mutableListOf<Future<T>>()
+        for (task in tasks) {
+            val result = task.call()
+            futures.add(CompletableFuture.completedFuture(result))
+        }
+        return futures
     }
 
     override fun <T : Any?> invokeAll(tasks: MutableCollection<out Callable<T>>, timeout: Long, unit: TimeUnit): MutableList<Future<T>> {
-        TODO("not implemented")
+        return invokeAll(tasks)
     }
 
     override fun execute(command: Runnable) {
