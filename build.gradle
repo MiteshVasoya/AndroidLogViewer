@@ -6,7 +6,7 @@ plugins {
     id 'com.adarshr.test-logger' version "3.2.0"
     id 'jacoco'
     //id 'com.github.kt3k.coveralls' version "$coveralls_version"
-    //id 'com.github.johnrengelman.shadow' version "7.1.2"
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 ext {
@@ -20,7 +20,7 @@ ext {
     apache_commons_version = '3.18.0'
     flatlaf_version = '1.5'
     jacoco_tool_version = '0.8.7'
-    shadowjar_version = '7.1.2' // Keep the version here for reference, but the plugin is commented out
+    shadowjar_version = '8.1.1'
     testlogger_version = '3.2.0'
     coveralls_version = '2.12.0'
 }
