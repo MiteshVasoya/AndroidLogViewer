@@ -15,58 +15,35 @@ import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
 
+/**
+ * Preferences configuration dialog for LogViewer application.
+ *
+ * This dialog implements a decomposed panel structure to resolve layout cognitive overload (R1)
+ * and prevent change propagation side-effects (R2) when preferences are added or updated.
+ */
 public class LogViewerPreferencesDialog extends JDialog implements ButtonsPane.Listener {
-  private static final String FILTER_PATH_PREF_ID = "filter_path";
-  private static final String LAST_FILTER_OPEN_ID = "open_last_filter";
-  private static final String LOG_PATH_PREF_ID = "log_path";
-  private static final String LOOK_FEEL_PREF_ID = "look_and_feel";
-  private static final String APPLY_FILTER_EDIT_ID = "apply_filter_edit";
-  private static final String REMEMBER_APPLIED_FILTERS_ID = "remember_applied_filters";
-  private static final String PREFERRED_TEXT_EDITOR_ID = "preferred_text_editor";
-  private static final String COLLAPSE_ALL_GROUPS_STARTUP_ID = "collapse_all_groups_startup";
-  private static final String SHOW_LINE_NUMBERS_ID = "show_line_numbers";
-  private static final String APPLY_FILTER_CHECK_ID = "apply_filter_check";
 
   private ButtonsPane buttonsPane;
   private JPanel contentPane;
-  private JComboBox<String> lookAndFeelCbx;
-  private JTextField filtersPathTxt;
-  private JButton filtersPathBtn;
-  private JCheckBox openLastFilterChbx;
-  private JTextField logsPathTxt;
-  private JButton logsPathBtn;
-  private JCheckBox applyFiltersAfterEditChbx;
-  private JCheckBox rememberAppliedFiltersChbx;
-  private JCheckBox collapseAllGroupsStartup;
-  private JCheckBox showLineNumbersChbx;
-  private JTextField preferredEditorPathTxt;
-  private JButton preferredEditorPathBtn;
-  private JCheckBox applyFiltersOnCheckChbx;
 
-  private JFileChooser filterFolderChooser;
-  private JFileChooser logsFolderChooser;
-  private JFileChooser preferredEditorFileChooser;
+  private AppearancePanel appearancePanel;
+  private FoldersPanel foldersPanel;
+  private BehaviorPanel behaviorPanel;
+  private ExternalToolsPanel externalToolsPanel;
+
   private final LogViewerPreferences userPrefs;
   private final LogViewerThemeManager themeManager;
 
-  private final Map<String, Runnable> saveActions = new HashMap<>();
-
   public LogViewerPreferencesDialog(JFrame owner) {
     super(owner);
+    userPrefs = ServiceLocator.INSTANCE.getLogViewerPrefs();
+    themeManager = ServiceLocator.INSTANCE.getThemeManager();
+
     buildUi();
     setContentPane(contentPane);
     setModal(true);
     buttonsPane.setDefaultButtonOk();
-    userPrefs = ServiceLocator.INSTANCE.getLogViewerPrefs();
-    themeManager = ServiceLocator.INSTANCE.getThemeManager();
-
-    initFiltersPathPreference();
-    initLogsPathPreference();
-    initLookAndFeelPreference();
-    initPreferredEditorPathPreference();
 
     // Adjust the size according to the content after everything is populated
     contentPane.setPreferredSize(contentPane.getPreferredSize());
@@ -86,58 +63,12 @@ public class LogViewerPreferencesDialog extends JDialog implements ButtonsPane.L
         JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
   }
 
-  private void initFiltersPathPreference() {
-    filtersPathBtn.addActionListener(e -> onSelectFilterPath());
-    filtersPathTxt.setText(userPrefs.getDefaultFiltersPath().getAbsolutePath());
-
-    openLastFilterChbx.addActionListener(e -> onOpenLastFilterChanged());
-    openLastFilterChbx.setSelected(userPrefs.getOpenLastFilter());
-
-    applyFiltersAfterEditChbx.addActionListener(e -> onApplyFiltersAfterEditChanged());
-    applyFiltersAfterEditChbx.setSelected(userPrefs.getReapplyFiltersAfterEdit());
-
-    rememberAppliedFiltersChbx.addActionListener(e -> onRememberAppliedFiltersChanged());
-    rememberAppliedFiltersChbx.setSelected(userPrefs.getRememberAppliedFilters());
-
-    collapseAllGroupsStartup.addActionListener(e -> onCollapseAllGroupsOnStartupChanged());
-    collapseAllGroupsStartup.setSelected(userPrefs.getCollapseAllGroupsStartup());
-
-    showLineNumbersChbx.addActionListener(e -> onShowLineNumbersChanged());
-    showLineNumbersChbx.setSelected(userPrefs.getShowLineNumbers());
-
-    applyFiltersOnCheckChbx.addActionListener(e -> onApplyFiltersOnCheckChanged());
-    applyFiltersOnCheckChbx.setSelected(userPrefs.getApplyFilterOnCheck());
-  }
-
-  private void initLogsPathPreference() {
-    logsPathBtn.addActionListener(e -> onSelectLogsPath());
-    logsPathTxt.setText(userPrefs.getDefaultLogsPath().getAbsolutePath());
-  }
-
-  private void initLookAndFeelPreference() {
-    for (String theme : themeManager.getAvailableThemes()) {
-      lookAndFeelCbx.addItem(theme);
-    }
-    lookAndFeelCbx.setSelectedItem(themeManager.getCurrentTheme());
-
-    lookAndFeelCbx.addActionListener(l -> {
-      String theme = (String) lookAndFeelCbx.getSelectedItem();
-      if (theme != null) {
-        saveActions.put(LOOK_FEEL_PREF_ID, () -> userPrefs.setLookAndFeel(theme));
-      }
-    });
-  }
-
-  private void initPreferredEditorPathPreference() {
-    preferredEditorPathBtn.addActionListener(e -> onSelectPreferredEditorPath());
-    File editorFile = userPrefs.getPreferredTextEditor();
-    String path = editorFile != null ? editorFile.getAbsolutePath() : null;
-    preferredEditorPathTxt.setText(path);
-  }
-
   @Override
   public void onOk() {
-    saveActions.forEach((s, runnable) -> runnable.run());
+    appearancePanel.save();
+    foldersPanel.save();
+    behaviorPanel.save();
+    externalToolsPanel.save();
     dispose();
   }
 
@@ -146,99 +77,22 @@ public class LogViewerPreferencesDialog extends JDialog implements ButtonsPane.L
     dispose();
   }
 
-  private void onSelectFilterPath() {
-    if (filterFolderChooser == null) {
-      filterFolderChooser = new JFileChooserExt(userPrefs.getDefaultFiltersPath());
-      filterFolderChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-    }
-
-    int selectedOption = filterFolderChooser.showOpenDialog(this);
-    if (selectedOption == JFileChooser.APPROVE_OPTION) {
-      File selectedFolder = filterFolderChooser.getSelectedFile();
-      filtersPathTxt.setText(selectedFolder.getAbsolutePath());
-      saveActions.put(FILTER_PATH_PREF_ID,
-          () -> userPrefs.setDefaultFiltersPath(selectedFolder));
-    }
-  }
-
-  private void onSelectLogsPath() {
-    if (logsFolderChooser == null) {
-      logsFolderChooser = new JFileChooserExt(userPrefs.getDefaultLogsPath());
-      logsFolderChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-    }
-
-    int selectedOption = logsFolderChooser.showOpenDialog(this);
-    if (selectedOption == JFileChooser.APPROVE_OPTION) {
-      File selectedFolder = logsFolderChooser.getSelectedFile();
-      logsPathTxt.setText(selectedFolder.getAbsolutePath());
-      saveActions.put(LOG_PATH_PREF_ID,
-          () -> userPrefs.setDefaultLogsPath(selectedFolder));
-    }
-  }
-
-  private void onOpenLastFilterChanged() {
-    boolean isChecked = openLastFilterChbx.getModel().isSelected();
-    saveActions.put(LAST_FILTER_OPEN_ID, () -> userPrefs.setOpenLastFilter(isChecked));
-  }
-
-  private void onApplyFiltersAfterEditChanged() {
-    boolean isChecked = applyFiltersAfterEditChbx.getModel().isSelected();
-    saveActions.put(APPLY_FILTER_EDIT_ID, () -> userPrefs.setReapplyFiltersAfterEdit(isChecked));
-  }
-
-  private void onRememberAppliedFiltersChanged() {
-    boolean isChecked = rememberAppliedFiltersChbx.getModel().isSelected();
-    saveActions.put(REMEMBER_APPLIED_FILTERS_ID, () -> userPrefs.setRememberAppliedFilters(isChecked));
-  }
-
-  private void onCollapseAllGroupsOnStartupChanged() {
-    boolean isChecked = collapseAllGroupsStartup.getModel().isSelected();
-    saveActions.put(COLLAPSE_ALL_GROUPS_STARTUP_ID, () -> userPrefs.setCollapseAllGroupsStartup(isChecked));
-  }
-
-  private void onShowLineNumbersChanged() {
-    boolean isChecked = showLineNumbersChbx.getModel().isSelected();
-    saveActions.put(SHOW_LINE_NUMBERS_ID, () -> userPrefs.setShowLineNumbers(isChecked));
-  }
-
-  private void onSelectPreferredEditorPath() {
-    if (preferredEditorFileChooser == null) {
-      preferredEditorFileChooser = new JFileChooserExt(userPrefs.getPreferredTextEditor());
-    }
-
-    int selectedOption = preferredEditorFileChooser.showOpenDialog(this);
-    if (selectedOption == JFileChooser.APPROVE_OPTION) {
-      File selectedFolder = preferredEditorFileChooser.getSelectedFile();
-      preferredEditorPathTxt.setText(selectedFolder.getAbsolutePath());
-      saveActions.put(PREFERRED_TEXT_EDITOR_ID,
-          () -> userPrefs.setPreferredTextEditor(selectedFolder));
-    }
-  }
-
   public static void showPreferencesDialog(JFrame parent) {
     LogViewerPreferencesDialog dialog = new LogViewerPreferencesDialog(parent);
-
     dialog.pack();
     dialog.setLocationRelativeTo(parent);
     dialog.setVisible(true);
-  }
-
-  /**
-   * This method is called when the "Apply filters on check" checkbox is toggled.
-   */
-  private void onApplyFiltersOnCheckChanged() {
-    boolean isChecked = applyFiltersOnCheckChbx.getModel().isSelected();
-    saveActions.put(APPLY_FILTER_CHECK_ID, () -> userPrefs.setApplyFilterOnCheck(isChecked));
   }
 
   private void buildUi() {
     contentPane = new JPanel();
     contentPane.setLayout(new GridBagLayout());
     contentPane.setRequestFocusEnabled(true);
-    contentPane.setBorder(BorderFactory.createEmptyBorder(UIScaleUtils.dip(10),
-            UIScaleUtils.dip(10),
-            UIScaleUtils.dip(10),
-            UIScaleUtils.dip(10)));
+    contentPane.setBorder(BorderFactory.createEmptyBorder(
+        UIScaleUtils.dip(10),
+        UIScaleUtils.dip(10),
+        UIScaleUtils.dip(10),
+        UIScaleUtils.dip(10)));
 
     buttonsPane = new ButtonsPane(ButtonsPane.ButtonsMode.OK_CANCEL, this);
     contentPane.add(buttonsPane,
@@ -249,8 +103,23 @@ public class LogViewerPreferencesDialog extends JDialog implements ButtonsPane.L
             .withFill(GridBagConstraints.BOTH)
             .build());
 
+    JPanel composedForm = new JPanel();
+    composedForm.setLayout(new BoxLayout(composedForm, BoxLayout.Y_AXIS));
 
-    contentPane.add(buildFormPane(),
+    appearancePanel = new AppearancePanel(themeManager, userPrefs);
+    foldersPanel = new FoldersPanel(userPrefs);
+    behaviorPanel = new BehaviorPanel(userPrefs);
+    externalToolsPanel = new ExternalToolsPanel(userPrefs);
+
+    composedForm.add(appearancePanel);
+    composedForm.add(Box.createVerticalStrut(UIScaleUtils.dip(8)));
+    composedForm.add(foldersPanel);
+    composedForm.add(Box.createVerticalStrut(UIScaleUtils.dip(8)));
+    composedForm.add(behaviorPanel);
+    composedForm.add(Box.createVerticalStrut(UIScaleUtils.dip(8)));
+    composedForm.add(externalToolsPanel);
+
+    contentPane.add(composedForm,
         new GBConstraintsBuilder()
             .withGridx(0)
             .withGridy(0)
@@ -260,105 +129,299 @@ public class LogViewerPreferencesDialog extends JDialog implements ButtonsPane.L
             .build());
   }
 
-  private JPanel buildFormPane() {
-    final JPanel formPane = new JPanel();
-    formPane.setLayout(new FormLayout(
-        "fill:d:grow,left:4dlu:noGrow,fill:d:grow,left:4dlu:noGrow,fill:d:grow",
-        "center:d:grow,top:3dlu:noGrow,center:d:grow,top:3dlu:noGrow,center:d:grow,top:3dlu:noGrow,center:d:grow,top:3dlu:noGrow,center:d:grow,top:3dlu:noGrow,center:d:grow,top:3dlu:noGrow,center:d:grow,top:3dlu:noGrow,center:d:grow,top:3dlu:noGrow,center:d:grow,top:3dlu:noGrow,center:d:grow,top:3dlu:noGrow,center:d:grow,top:3dlu:noGrow,center:d:grow,top:3dlu:noGrow,center:d:grow,top:3dlu:noGrow,center:d:grow"));
+  /**
+   * Panel encapsulating appearance and theme settings.
+   *
+   * Invariants:
+   * - Look and feel options are populated directly from the application theme manager.
+   * - Saves user selection only when {@link #save()} is invoked.
+   */
+  private static class AppearancePanel extends JPanel {
+    private final JComboBox<String> lookAndFeelCbx;
+    private final LogViewerThemeManager themeManager;
+    private final LogViewerPreferences userPrefs;
 
+    /**
+     * Constructs the appearance panel.
+     *
+     * Pre-conditions:
+     * - themeManager must not be null.
+     * - userPrefs must not be null.
+     */
+    AppearancePanel(LogViewerThemeManager themeManager, LogViewerPreferences userPrefs) {
+      this.themeManager = themeManager;
+      this.userPrefs = userPrefs;
+      setBorder(BorderFactory.createTitledBorder("Appearance"));
+      setLayout(new FormLayout("fill:d:grow,left:4dlu:noGrow,fill:d:grow", "center:d:grow"));
 
-    final JLabel lookNFeelLbl = new JLabel();
-    lookNFeelLbl.setText("Look And Feel");
-    CellConstraints cc = new CellConstraints();
-    formPane.add(lookNFeelLbl, cc.xy(1, 1));
-    lookAndFeelCbx = new JComboBox<>();
-    lookAndFeelCbx.setMinimumSize(new Dimension());
-    formPane.add(lookAndFeelCbx, cc.xy(3, 1));
+      CellConstraints cc = new CellConstraints();
+      JLabel lookNFeelLbl = new JLabel("Look And Feel:");
+      add(lookNFeelLbl, cc.xy(1, 1));
 
-    final JSeparator sep1 = new JSeparator();
-    formPane.add(sep1, cc.xyw(1, 3, 3, CellConstraints.FILL, CellConstraints.DEFAULT));
+      lookAndFeelCbx = new JComboBox<>();
+      lookAndFeelCbx.setMinimumSize(new Dimension());
+      for (String theme : themeManager.getAvailableThemes()) {
+        lookAndFeelCbx.addItem(theme);
+      }
+      lookAndFeelCbx.setSelectedItem(themeManager.getCurrentTheme());
+      add(lookAndFeelCbx, cc.xy(3, 1));
+    }
 
-    final JLabel defaultLogsLbl = new JLabel();
-    defaultLogsLbl.setText("Default path for log files");
-    formPane.add(defaultLogsLbl, cc.xy(1, 5));
-    logsPathTxt = new JTextField();
-    logsPathTxt.setEditable(false);
-    formPane.add(logsPathTxt, cc.xy(3, 5, CellConstraints.FILL, CellConstraints.DEFAULT));
-    logsPathBtn = new JButton();
-    logsPathBtn.setText("...");
-    formPane.add(logsPathBtn, cc.xy(5, 5));
+    /**
+     * Persists the selected look and feel theme to preferences.
+     *
+     * Post-conditions:
+     * - If a new theme is selected, it is saved to userPrefs.
+     */
+    void save() {
+      String theme = (String) lookAndFeelCbx.getSelectedItem();
+      if (theme != null && !theme.equals(themeManager.getCurrentTheme())) {
+        userPrefs.setLookAndFeel(theme);
+      }
+    }
+  }
 
-    final JSeparator sep2 = new JSeparator();
-    formPane.add(sep2, cc.xyw(1, 7, 3, CellConstraints.FILL, CellConstraints.DEFAULT));
+  /**
+   * Panel encapsulating default search and logs storage paths.
+   *
+   * Invariants:
+   * - Log and filter folder selections are cached in-memory and deferred until {@link #save()} is called.
+   */
+  private class FoldersPanel extends JPanel {
+    private final JTextField logsPathTxt;
+    private final JButton logsPathBtn;
+    private final JTextField filtersPathTxt;
+    private final JButton filtersPathBtn;
+    private final LogViewerPreferences userPrefs;
 
-    final JLabel defaultFiltersLbl = new JLabel();
-    defaultFiltersLbl.setText("Default path for filter files");
-    formPane.add(defaultFiltersLbl, cc.xy(1, 9));
-    filtersPathTxt = new JTextField();
-    filtersPathTxt.setEditable(false);
-    formPane.add(filtersPathTxt, cc.xy(3, 9, CellConstraints.FILL, CellConstraints.DEFAULT));
-    filtersPathBtn = new JButton();
-    filtersPathBtn.setText("...");
-    formPane.add(filtersPathBtn, cc.xy(5, 9));
+    private File selectedLogsFolder;
+    private File selectedFiltersFolder;
 
-    final JLabel openLastLbl = new JLabel();
-    openLastLbl.setText("Open last filters on startup");
-    formPane.add(openLastLbl, cc.xy(1, 11));
-    openLastFilterChbx = new JCheckBox();
-    openLastFilterChbx.setText("");
-    formPane.add(openLastFilterChbx, cc.xy(3, 11));
+    private JFileChooser logsFolderChooser;
+    private JFileChooser filterFolderChooser;
 
-    final JSeparator sep3 = new JSeparator();
-    formPane.add(sep3, cc.xyw(1, 13, 3, CellConstraints.FILL, CellConstraints.DEFAULT));
+    /**
+     * Constructs the folders panel.
+     *
+     * Pre-conditions:
+     * - userPrefs must not be null.
+     */
+    FoldersPanel(LogViewerPreferences userPrefs) {
+      this.userPrefs = userPrefs;
+      setBorder(BorderFactory.createTitledBorder("Default Folders"));
+      setLayout(new FormLayout(
+          "fill:d:grow,left:4dlu:noGrow,fill:d:grow,left:4dlu:noGrow,fill:d:grow",
+          "center:d:grow,top:3dlu:noGrow,center:d:grow"));
 
-    final JLabel applyFiltersLbl = new JLabel();
-    applyFiltersLbl.setText("Apply filters after edit");
-    formPane.add(applyFiltersLbl, cc.xy(1, 15));
-    applyFiltersAfterEditChbx = new JCheckBox();
-    applyFiltersAfterEditChbx.setText("");
-    formPane.add(applyFiltersAfterEditChbx, cc.xy(3, 15));
+      CellConstraints cc = new CellConstraints();
 
-    final JLabel rememberFiltersLbl = new JLabel();
-    rememberFiltersLbl.setText("Remember applied filters");
-    formPane.add(rememberFiltersLbl, cc.xy(1, 17));
-    rememberAppliedFiltersChbx = new JCheckBox();
-    rememberAppliedFiltersChbx.setText("");
-    formPane.add(rememberAppliedFiltersChbx, cc.xy(3, 17));
+      JLabel defaultLogsLbl = new JLabel("Default path for log files:");
+      add(defaultLogsLbl, cc.xy(1, 1));
+      logsPathTxt = new JTextField(userPrefs.getDefaultLogsPath().getAbsolutePath());
+      logsPathTxt.setEditable(false);
+      add(logsPathTxt, cc.xy(3, 1, CellConstraints.FILL, CellConstraints.DEFAULT));
+      logsPathBtn = new JButton("...");
+      logsPathBtn.addActionListener(e -> onSelectLogsPath());
+      add(logsPathBtn, cc.xy(5, 1));
 
-    final JLabel collapseOnStartLbl = new JLabel();
-    collapseOnStartLbl.setText("Collapse all groups on startup");
-    formPane.add(collapseOnStartLbl, cc.xy(1, 19));
-    collapseAllGroupsStartup = new JCheckBox();
-    collapseAllGroupsStartup.setText("");
-    formPane.add(collapseAllGroupsStartup, cc.xy(3, 19));
+      JLabel defaultFiltersLbl = new JLabel("Default path for filter files:");
+      add(defaultFiltersLbl, cc.xy(1, 3));
+      filtersPathTxt = new JTextField(userPrefs.getDefaultFiltersPath().getAbsolutePath());
+      filtersPathTxt.setEditable(false);
+      add(filtersPathTxt, cc.xy(3, 3, CellConstraints.FILL, CellConstraints.DEFAULT));
+      filtersPathBtn = new JButton("...");
+      filtersPathBtn.addActionListener(e -> onSelectFilterPath());
+      add(filtersPathBtn, cc.xy(5, 3));
+    }
 
-    final JLabel showLineNumberLbl = new JLabel();
-    showLineNumberLbl.setText("Show Line numbers");
-    formPane.add(showLineNumberLbl, cc.xy(1, 21));
-    showLineNumbersChbx = new JCheckBox();
-    showLineNumbersChbx.setText("");
-    formPane.add(showLineNumbersChbx, cc.xy(3, 21));
+    private void onSelectLogsPath() {
+      if (logsFolderChooser == null) {
+        logsFolderChooser = new JFileChooserExt(userPrefs.getDefaultLogsPath());
+        logsFolderChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+      }
 
-    final JLabel applyFiltersOnChangeLbl = new JLabel();
-    applyFiltersOnChangeLbl.setText("Apply filters on check");
-    formPane.add(applyFiltersOnChangeLbl, cc.xy(1, 23));
-    applyFiltersOnCheckChbx = new JCheckBox();
-    applyFiltersOnCheckChbx.setText("");
-    formPane.add(applyFiltersOnCheckChbx, cc.xy(3, 23));
+      int selectedOption = logsFolderChooser.showOpenDialog(LogViewerPreferencesDialog.this);
+      if (selectedOption == JFileChooser.APPROVE_OPTION) {
+        selectedLogsFolder = logsFolderChooser.getSelectedFile();
+        logsPathTxt.setText(selectedLogsFolder.getAbsolutePath());
+      }
+    }
 
-    final JSeparator sep4 = new JSeparator();
-    formPane.add(sep4, cc.xyw(1, 24, 3, CellConstraints.FILL, CellConstraints.DEFAULT));
+    private void onSelectFilterPath() {
+      if (filterFolderChooser == null) {
+        filterFolderChooser = new JFileChooserExt(userPrefs.getDefaultFiltersPath());
+        filterFolderChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+      }
 
-    final JLabel preferredEditorLbl = new JLabel();
-    preferredEditorLbl.setText("Preferred text Editor");
-    formPane.add(preferredEditorLbl, cc.xy(1, 25));
-    preferredEditorPathTxt = new JTextField();
-    preferredEditorPathTxt.setEditable(false);
-    formPane.add(preferredEditorPathTxt, cc.xy(3, 25, CellConstraints.FILL, CellConstraints.DEFAULT));
-    preferredEditorPathBtn = new JButton();
-    preferredEditorPathBtn.setText("...");
-    formPane.add(preferredEditorPathBtn, cc.xy(5, 25));
+      int selectedOption = filterFolderChooser.showOpenDialog(LogViewerPreferencesDialog.this);
+      if (selectedOption == JFileChooser.APPROVE_OPTION) {
+        selectedFiltersFolder = filterFolderChooser.getSelectedFile();
+        filtersPathTxt.setText(selectedFiltersFolder.getAbsolutePath());
+      }
+    }
 
-    return formPane;
+    /**
+     * Persists selected folder locations to user preferences.
+     *
+     * Post-conditions:
+     * - Configured logs and filters directories are updated in userPrefs.
+     */
+    void save() {
+      if (selectedLogsFolder != null) {
+        userPrefs.setDefaultLogsPath(selectedLogsFolder);
+      }
+      if (selectedFiltersFolder != null) {
+        userPrefs.setDefaultFiltersPath(selectedFiltersFolder);
+      }
+    }
+  }
+
+  /**
+   * Panel encapsulating feature toggles and core runtime behaviors.
+   *
+   * Invariants:
+   * - Behavior settings correspond to direct boolean properties of user preferences.
+   */
+  private static class BehaviorPanel extends JPanel {
+    private final JCheckBox openLastFilterChbx;
+    private final JCheckBox applyFiltersAfterEditChbx;
+    private final JCheckBox rememberAppliedFiltersChbx;
+    private final JCheckBox collapseAllGroupsStartup;
+    private final JCheckBox showLineNumbersChbx;
+    private final JCheckBox applyFiltersOnCheckChbx;
+    private final LogViewerPreferences userPrefs;
+
+    /**
+     * Constructs the behavior panel.
+     *
+     * Pre-conditions:
+     * - userPrefs must not be null.
+     */
+    BehaviorPanel(LogViewerPreferences userPrefs) {
+      this.userPrefs = userPrefs;
+      setBorder(BorderFactory.createTitledBorder("Behavior & Features"));
+      setLayout(new FormLayout(
+          "fill:d:grow,left:4dlu:noGrow,fill:d:grow",
+          "center:d:grow,top:3dlu:noGrow,center:d:grow,top:3dlu:noGrow,center:d:grow,top:3dlu:noGrow,center:d:grow,top:3dlu:noGrow,center:d:grow,top:3dlu:noGrow,center:d:grow"));
+
+      CellConstraints cc = new CellConstraints();
+
+      JLabel openLastLbl = new JLabel("Open last filters on startup:");
+      add(openLastLbl, cc.xy(1, 1));
+      openLastFilterChbx = new JCheckBox();
+      openLastFilterChbx.setSelected(userPrefs.getOpenLastFilter());
+      add(openLastFilterChbx, cc.xy(3, 1));
+
+      JLabel applyFiltersLbl = new JLabel("Apply filters after edit:");
+      add(applyFiltersLbl, cc.xy(1, 3));
+      applyFiltersAfterEditChbx = new JCheckBox();
+      applyFiltersAfterEditChbx.setSelected(userPrefs.getReapplyFiltersAfterEdit());
+      add(applyFiltersAfterEditChbx, cc.xy(3, 3));
+
+      JLabel rememberFiltersLbl = new JLabel("Remember applied filters:");
+      add(rememberFiltersLbl, cc.xy(1, 5));
+      rememberAppliedFiltersChbx = new JCheckBox();
+      rememberAppliedFiltersChbx.setSelected(userPrefs.getRememberAppliedFilters());
+      add(rememberAppliedFiltersChbx, cc.xy(3, 5));
+
+      JLabel collapseOnStartLbl = new JLabel("Collapse all groups on startup:");
+      add(collapseOnStartLbl, cc.xy(1, 7));
+      collapseAllGroupsStartup = new JCheckBox();
+      collapseAllGroupsStartup.setSelected(userPrefs.getCollapseAllGroupsStartup());
+      add(collapseAllGroupsStartup, cc.xy(3, 7));
+
+      JLabel showLineNumberLbl = new JLabel("Show Line numbers:");
+      add(showLineNumberLbl, cc.xy(1, 9));
+      showLineNumbersChbx = new JCheckBox();
+      showLineNumbersChbx.setSelected(userPrefs.getShowLineNumbers());
+      add(showLineNumbersChbx, cc.xy(3, 9));
+
+      JLabel applyFiltersOnChangeLbl = new JLabel("Apply filters on check:");
+      add(applyFiltersOnChangeLbl, cc.xy(1, 11));
+      applyFiltersOnCheckChbx = new JCheckBox();
+      applyFiltersOnCheckChbx.setSelected(userPrefs.getApplyFilterOnCheck());
+      add(applyFiltersOnCheckChbx, cc.xy(3, 11));
+    }
+
+    /**
+     * Persists all configured behavior checkboxes to preferences.
+     *
+     * Post-conditions:
+     * - All boolean toggles are directly written to userPrefs.
+     */
+    void save() {
+      userPrefs.setOpenLastFilter(openLastFilterChbx.isSelected());
+      userPrefs.setReapplyFiltersAfterEdit(applyFiltersAfterEditChbx.isSelected());
+      userPrefs.setRememberAppliedFilters(rememberAppliedFiltersChbx.isSelected());
+      userPrefs.setCollapseAllGroupsStartup(collapseAllGroupsStartup.isSelected());
+      userPrefs.setShowLineNumbers(showLineNumbersChbx.isSelected());
+      userPrefs.setApplyFilterOnCheck(applyFiltersOnCheckChbx.isSelected());
+    }
+  }
+
+  /**
+   * Panel encapsulating preferred external text editors.
+   *
+   * Invariants:
+   * - Holds a deferred reference to the selected text editor executable path.
+   */
+  private class ExternalToolsPanel extends JPanel {
+    private final JTextField preferredEditorPathTxt;
+    private final JButton preferredEditorPathBtn;
+    private final LogViewerPreferences userPrefs;
+
+    private File selectedEditorFile;
+    private JFileChooser preferredEditorFileChooser;
+
+    /**
+     * Constructs the external tools panel.
+     *
+     * Pre-conditions:
+     * - userPrefs must not be null.
+     */
+    ExternalToolsPanel(LogViewerPreferences userPrefs) {
+      this.userPrefs = userPrefs;
+      setBorder(BorderFactory.createTitledBorder("External Tools"));
+      setLayout(new FormLayout(
+          "fill:d:grow,left:4dlu:noGrow,fill:d:grow,left:4dlu:noGrow,fill:d:grow",
+          "center:d:grow"));
+
+      CellConstraints cc = new CellConstraints();
+
+      JLabel preferredEditorLbl = new JLabel("Preferred text Editor:");
+      add(preferredEditorLbl, cc.xy(1, 1));
+      File editorFile = userPrefs.getPreferredTextEditor();
+      String path = editorFile != null ? editorFile.getAbsolutePath() : "";
+      preferredEditorPathTxt = new JTextField(path);
+      preferredEditorPathTxt.setEditable(false);
+      add(preferredEditorPathTxt, cc.xy(3, 1, CellConstraints.FILL, CellConstraints.DEFAULT));
+      preferredEditorPathBtn = new JButton("...");
+      preferredEditorPathBtn.addActionListener(e -> onSelectPreferredEditorPath());
+      add(preferredEditorPathBtn, cc.xy(5, 1));
+    }
+
+    private void onSelectPreferredEditorPath() {
+      if (preferredEditorFileChooser == null) {
+        preferredEditorFileChooser = new JFileChooserExt(userPrefs.getPreferredTextEditor());
+      }
+
+      int selectedOption = preferredEditorFileChooser.showOpenDialog(LogViewerPreferencesDialog.this);
+      if (selectedOption == JFileChooser.APPROVE_OPTION) {
+        selectedEditorFile = preferredEditorFileChooser.getSelectedFile();
+        preferredEditorPathTxt.setText(selectedEditorFile.getAbsolutePath());
+      }
+    }
+
+    /**
+     * Persists the selected external editor path to preferences.
+     *
+     * Post-conditions:
+     * - Writes the selected file executable reference to userPrefs.
+     */
+    void save() {
+      if (selectedEditorFile != null) {
+        userPrefs.setPreferredTextEditor(selectedEditorFile);
+      }
+    }
   }
 }
