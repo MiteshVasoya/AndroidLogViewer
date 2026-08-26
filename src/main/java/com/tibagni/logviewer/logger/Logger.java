@@ -90,7 +90,7 @@ public class Logger {
 
     String levelIndicator = level.name().substring(0, 1).toUpperCase();
     DecimalFormat tidFormat = new DecimalFormat("000");
-    String tid = tidFormat.format(Thread.currentThread().threadId());
+    String tid = tidFormat.format(Thread.currentThread().getId());
     String pid = String.valueOf(ProcessHandle.current().pid());
 
     String logMessage = date + " " + pid + " " + tid + " " + levelIndicator + " " + getCallingClassName() + ": " + message;
