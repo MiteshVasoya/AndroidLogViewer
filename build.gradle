@@ -19,7 +19,7 @@ ext {
     commonsio_version = '2.14.0'
     apache_commons_version = '3.18.0'
     flatlaf_version = '1.5'
-    jacoco_tool_version = '0.8.7'
+    jacoco_tool_version = '0.8.12'
     shadowjar_version = '8.1.1'
     testlogger_version = '3.2.0'
     coveralls_version = '2.12.0'
