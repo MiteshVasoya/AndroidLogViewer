@@ -1,5 +1,6 @@
-package com.tibagni.logviewer.filter;
+package com.tibagni.logviewer.view;
 
+import com.tibagni.logviewer.filter.Filter;
 import javax.swing.table.AbstractTableModel;
 
 public class FiltersListTableModel extends AbstractTableModel {

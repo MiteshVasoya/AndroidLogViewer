@@ -1,6 +1,7 @@
-package com.tibagni.logviewer.filter;
+package com.tibagni.logviewer.view;
 
 import com.tibagni.logviewer.ServiceLocator;
+import com.tibagni.logviewer.filter.Filter;
 import com.tibagni.logviewer.util.StringUtils;
 import com.tibagni.logviewer.util.SwingUtils;
 import com.tibagni.logviewer.util.scaling.UIScaleUtils;

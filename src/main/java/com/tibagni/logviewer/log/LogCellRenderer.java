@@ -1,6 +1,10 @@
-package com.tibagni.logviewer.log;
+package com.tibagni.logviewer.view;
 
 import com.tibagni.logviewer.ServiceLocator;
+import com.tibagni.logviewer.log.LogEntry;
+import com.tibagni.logviewer.log.LogEntryFilter;
+import com.tibagni.logviewer.log.LogLevel;
+import com.tibagni.logviewer.log.LogStream;
 import com.tibagni.logviewer.logger.Logger;
 import com.tibagni.logviewer.theme.LogViewerThemeManager;
 import com.tibagni.logviewer.util.StringUtils;

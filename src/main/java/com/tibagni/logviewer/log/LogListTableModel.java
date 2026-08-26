@@ -1,5 +1,6 @@
-package com.tibagni.logviewer.log;
+package com.tibagni.logviewer.view;
 
+import com.tibagni.logviewer.log.LogEntry;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.table.AbstractTableModel;

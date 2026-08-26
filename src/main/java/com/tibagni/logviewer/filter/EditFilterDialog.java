@@ -1,15 +1,15 @@
-package com.tibagni.logviewer.filter;
+package com.tibagni.logviewer.view;
 
 import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
 import com.tibagni.logviewer.ServiceLocator;
-import com.tibagni.logviewer.filter.regex.RegexEditorDialog;
+import com.tibagni.logviewer.filter.Filter;
+import com.tibagni.logviewer.filter.FilterException;
 import com.tibagni.logviewer.log.LogLevel;
 import com.tibagni.logviewer.theme.LogViewerThemeManager;
 import com.tibagni.logviewer.util.StringUtils;
 import com.tibagni.logviewer.util.scaling.UIScaleUtils;
 import com.tibagni.logviewer.util.layout.GBConstraintsBuilder;
-import com.tibagni.logviewer.view.ButtonsPane;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;

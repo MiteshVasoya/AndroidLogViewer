@@ -1,10 +1,7 @@
 package com.tibagni.logviewer
 
 import com.tibagni.logviewer.LogViewerPresenter.UserSelection
-import com.tibagni.logviewer.filter.EditFilterDialog
 import com.tibagni.logviewer.filter.Filter
-import com.tibagni.logviewer.filter.FiltersList
-import com.tibagni.logviewer.filter.FiltersList.FiltersListener
 import com.tibagni.logviewer.log.*
 import com.tibagni.logviewer.logger.Logger
 import com.tibagni.logviewer.preferences.LogViewerPreferences
@@ -13,6 +10,7 @@ import com.tibagni.logviewer.util.SwingUtils
 import com.tibagni.logviewer.util.layout.GBConstraintsBuilder
 import com.tibagni.logviewer.util.scaling.UIScaleUtils
 import com.tibagni.logviewer.view.*
+import com.tibagni.logviewer.view.FiltersList.FiltersListener
 import java.awt.*
 import java.awt.event.*
 import java.io.File

@@ -1,15 +1,12 @@
-package com.tibagni.logviewer.filter;
+package com.tibagni.logviewer.view;
 
 import com.tibagni.logviewer.ServiceLocator;
+import com.tibagni.logviewer.filter.Filter;
 import com.tibagni.logviewer.preferences.LogViewerPreferences;
 import com.tibagni.logviewer.theme.LogViewerThemeManager;
 import com.tibagni.logviewer.util.CommonUtils;
 import com.tibagni.logviewer.util.StringUtils;
 import com.tibagni.logviewer.util.scaling.UIScaleUtils;
-import com.tibagni.logviewer.view.CheckBoxList;
-import com.tibagni.logviewer.view.FlatButton;
-import com.tibagni.logviewer.view.ReorderableCheckBoxList;
-import com.tibagni.logviewer.view.TriStateCheckbox;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;

@@ -47,7 +47,7 @@ public class Filter implements LogEntryFilter {
     updateFilter(name, pattern, color, verbosity, caseSensitive);
   }
 
-  boolean nameIsPattern() {
+  public boolean nameIsPattern() {
     return StringUtils.areEquals(getName(), getPatternString());
   }
 

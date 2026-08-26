@@ -4,7 +4,6 @@ import com.jgoodies.forms.builder.PanelBuilder
 import com.jgoodies.forms.factories.CC
 import com.jgoodies.forms.layout.FormLayout
 import com.tibagni.logviewer.filter.Filter
-import com.tibagni.logviewer.log.LogCellRenderer
 import com.tibagni.logviewer.log.LogEntry
 import com.tibagni.logviewer.log.LogLevel
 import com.tibagni.logviewer.logger.Logger
