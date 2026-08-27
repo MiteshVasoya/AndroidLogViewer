@@ -24,7 +24,8 @@ public class LogParser {
 
   private static final Pattern LOG_LEVEL_PATTERN =
       Pattern.compile("^\\d{2}-\\d{2}\\s\\d{2}:\\d{2}:\\d{2}.*?([VDIWE])");
-  private static final String LOG_START_PATTERN = "^\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}.*";
+  private static final Pattern LOG_START_PATTERN_OBJ =
+      Pattern.compile("^\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}.*");
   private static final Pattern LOG_TIMESTAMP_PATTERN =
       Pattern.compile("^(\\d{1,2})-(\\d{1,2})\\s(\\d{1,2}):(\\d{1,2}):(\\d{1,2}).(\\d{3,})");
 
@@ -172,7 +173,7 @@ public class LogParser {
    */
   private String sanitizeLine(String line) {
     if (!line.isEmpty() && line.charAt(line.length() - 1) == '\u0000') {
-      return line.replaceAll("\\u0000", "");
+      return line.replace("\u0000", "");
     }
     return line;
   }
@@ -250,7 +251,7 @@ public class LogParser {
   }
 
   private boolean isLogLine(String line) {
-    return line.matches(LOG_START_PATTERN);
+    return LOG_START_PATTERN_OBJ.matcher(line).matches();
   }
 
   private boolean shouldIgnoreLine(String line) {

@@ -668,15 +668,6 @@ public class LogViewerPresenterImpl extends AsyncPresenter implements LogViewerP
     }
   }
 
-  private void forEachFilterInGroup(String group, Consumer<Filter> consumer) {
-    List<Filter> filtersFromGroup = filtersRepository.getCurrentlyOpenedFilters().get(group);
-    if (filtersFromGroup != null) {
-      for (Filter f : filtersFromGroup) {
-        consumer.accept(f);
-      }
-    }
-  }
-
   private void forEachFilter(Consumer<Filter> consumer) {
     for (Map.Entry<String, List<Filter>> entry : filtersRepository.getCurrentlyOpenedFilters().entrySet()) {
       List<Filter> filtersFromGroup = entry.getValue();
@@ -743,11 +734,7 @@ public class LogViewerPresenterImpl extends AsyncPresenter implements LogViewerP
     int reapplyRememberedFiltersCallCount;
   }
 
-  private final Stats testStats = new Stats();
-
-  Stats getTestStats() {
-    return testStats;
-  }
+  final Stats testStats = new Stats();
 
   void setFilteredLogsForTesting(LogEntry[] filteredLogs) {
     setFilteredLogsForTesting(filteredLogs, false);

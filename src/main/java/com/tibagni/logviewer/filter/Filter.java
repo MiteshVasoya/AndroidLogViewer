@@ -160,7 +160,7 @@ public class Filter implements LogEntryFilter {
     if (isCaseSensitive()) {
       return inputLine.contains(getPatternString());
     }
-    return inputLine.toLowerCase().contains(getPatternString().toLowerCase());
+    return StringUtils.containsIgnoreCase(inputLine, getPatternString());
   }
 
   private boolean regexMatch(String inputLine) {

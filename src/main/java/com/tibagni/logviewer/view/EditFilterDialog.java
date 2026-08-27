@@ -198,16 +198,6 @@ public class EditFilterDialog extends JDialog implements ButtonsPane.Listener {
     }
   }
 
-  private AbstractColorChooserPanel getSwatchPanel(AbstractColorChooserPanel[] panels) {
-    for (AbstractColorChooserPanel colorPanel : panels) {
-      if (colorPanel.getClass().getName().contains("DefaultSwatchChooserPanel")) {
-        return colorPanel;
-      }
-    }
-
-    return null;
-  }
-
   private Color getInitialColor() {
     // Set a random color for the filter initially
     final Random r = new Random();

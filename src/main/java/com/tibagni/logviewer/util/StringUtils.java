@@ -90,4 +90,8 @@ public class StringUtils {
 
     return false;
   }
+
+  public static boolean containsIgnoreCase(String str, String searchStr) {
+    return org.apache.commons.lang3.StringUtils.containsIgnoreCase(str, searchStr);
+  }
 }
