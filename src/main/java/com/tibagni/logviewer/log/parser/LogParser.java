@@ -133,12 +133,8 @@ public class LogParser {
       if (Thread.currentThread().isInterrupted()) {
         throw new RuntimeException("Log parsing cancelled.");
       }
-      // Sometimes a line can contain a lot of NULL chars at the end, making it fail when trying to open the log
-      // (as these NULL chars will make the line length too long). So check here if the line has NULL chars
-      // and remove them to avoid failing to open valid log files
-      if (!line.isEmpty() && line.charAt(line.length() - 1) == '\u0000') {
-        line = line.replaceAll("\\u0000", "");
-      }
+
+      line = sanitizeLine(line);
 
       if (isLogLine(line)) {
         if (currentLogLine != null) {
@@ -147,32 +143,9 @@ public class LogParser {
 
         currentLogLine = new StringBuilder(line);
       } else if (!shouldIgnoreLine(line) && currentLogLine != null) {
-        // This is probably a continuation of a already started log line. Append to it
+        // This is probably a continuation of an already started log line. Append to it
         if (currentLogLine.length() >= MAX_LOG_LINE_ALLOWED) {
-          currentLogLine.delete(MAX_LOG_LINE_ALLOWED, currentLogLine.length());
-
-          // First check if we have already considered this as a potential bugreport. If so,
-          // don't waste any more time here
-          if (!potentialBugReports.containsKey(logPath)) {
-            String incorrectLinePreview = currentLogLine.substring(0, 100) + "...";
-            Logger.warning(
-                "Incorrect format on following line (too long - " + currentLogLine.length() + " bytes):\n" +
-                    "\"" + incorrectLinePreview + "\"\n\n" +
-                    "Maximum logcat line should be " + LOGGER_ENTRY_MAX_PAYLOAD + " bytes");
-
-            // This could be a bugreport. If this is the case, keep track of it
-            if (isPotentialBugReport(logText)) {
-              Logger.info("Found a potential bugreport: " + logPath);
-
-              // Make sure to remove all '\r' so it does not get in the way of the parsers
-              String bugReportText = logText.replaceAll("\r", "");
-              potentialBugReports.put(logPath, bugReportText);
-            }
-          }
-
-          // We are done with this line, add it to the list and clear currentLogLine to avoid
-          // executing this same code over and over for invalid lines
-          logLines.add(createLogEntry(currentLogLine.toString(), logPath));
+          handleLineOverflow(currentLogLine, logPath, logText, logLines);
           currentLogLine = null;
 
           // This could simply be a malformed line, just continue parsing other lines
@@ -188,6 +161,54 @@ public class LogParser {
     }
 
     return logLines;
+  }
+
+  /**
+   * Sanitizes a log line by stripping any trailing null characters.
+   *
+   * @param line The raw log line to sanitize.
+   * @return The sanitized log line without trailing nulls.
+   */
+  private String sanitizeLine(String line) {
+    if (!line.isEmpty() && line.charAt(line.length() - 1) == '\u0000') {
+      return line.replaceAll("\\u0000", "");
+    }
+    return line;
+  }
+
+  /**
+   * Handles a log line that exceeds the maximum allowed length, logging warnings and
+   * identifying potential bugreports as necessary.
+   *
+   * @param currentLogLine The builder holding the current log line payload. Must not be null.
+   * @param logPath The filesystem path to the log file.
+   * @param logText The entire file content text.
+   * @param logLines The accumulated list of parsed LogEntry instances.
+   */
+  private void handleLineOverflow(StringBuilder currentLogLine, String logPath, String logText, List<LogEntry> logLines) {
+    currentLogLine.delete(MAX_LOG_LINE_ALLOWED, currentLogLine.length());
+
+    // First check if we have already considered this as a potential bugreport. If so,
+    // don't waste any more time here
+    if (!potentialBugReports.containsKey(logPath)) {
+      String incorrectLinePreview = currentLogLine.substring(0, 100) + "...";
+      Logger.warning(
+          "Incorrect format on following line (too long - " + currentLogLine.length() + " bytes):\n" +
+              "\"" + incorrectLinePreview + "\"\n\n" +
+              "Maximum logcat line should be " + LOGGER_ENTRY_MAX_PAYLOAD + " bytes");
+
+      // This could be a bugreport. If this is the case, keep track of it
+      if (isPotentialBugReport(logText)) {
+        Logger.info("Found a potential bugreport: " + logPath);
+
+        // Make sure to remove all '\r' so it does not get in the way of the parsers
+        String bugReportText = logText.replaceAll("\r", "");
+        potentialBugReports.put(logPath, bugReportText);
+      }
+    }
+
+    // We are done with this line, add it to the list
+    logLines.add(createLogEntry(currentLogLine.toString(), logPath));
   }
 
   private LogEntry createLogEntry(String logLine, String logName) {
