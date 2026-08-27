@@ -130,19 +130,17 @@ class MainViewImpl(
 
   private fun handleClose() {
     if (finishChainPosition > finishChain.lastIndex) {
-      // We wen through all views, we can close the app now
+      // We went through all views, we can close the app now
       parent.dispose()
       return
     }
 
     val viewToFinish = finishChain[finishChainPosition]
-    viewToFinish.requestFinish { finishApplication() }
-  }
-
-  private fun finishApplication() {
-    // continue on the finishChain
-    finishChainPosition++
-    handleClose()
+    viewToFinish.requestFinish {
+      // continue on the finishChain
+      finishChainPosition++
+      handleClose()
+    }
   }
 
   override fun showOpenMultipleLogsFileChooser(): Array<File>? {
