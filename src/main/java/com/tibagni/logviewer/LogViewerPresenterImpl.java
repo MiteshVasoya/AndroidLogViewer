@@ -653,18 +653,6 @@ public class LogViewerPresenterImpl extends AsyncPresenter implements LogViewerP
     return false;
   }
 
-  private void cleanUpFilterInfoFromLogEntries() {
-    if (filteredLogs != null) {
-      for (LogEntry entry : filteredLogs) {
-        entry.setAppliedFilter(null);
-      }
-    }
-  }
-
-  private void cleanUpFilterTempInfo() {
-    forEachFilter(Filter::resetTemporaryInfo);
-  }
-
   private void checkForUnsavedChanges() {
     unsavedFilterGroups.clear();
     List<String> changedGroups = filtersRepository.getChangedGroupsSinceLastOpened();
