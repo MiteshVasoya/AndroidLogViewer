@@ -1,6 +1,7 @@
 package com.tibagni.logviewer.log.parser;
 
 import com.tibagni.logviewer.ProgressReporter;
+import com.tibagni.logviewer.bugreport.parser.BugReportParser;
 import com.tibagni.logviewer.log.*;
 import com.tibagni.logviewer.logger.Logger;
 import com.tibagni.logviewer.util.StringUtils;
@@ -257,6 +258,6 @@ public class LogParser {
   }
 
   private boolean isPotentialBugReport(String logText) {
-    return logText.contains("Bugreport format version:");
+    return BugReportParser.isBugReport(logText);
   }
 }

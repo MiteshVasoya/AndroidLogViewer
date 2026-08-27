@@ -6,6 +6,15 @@ import com.tibagni.logviewer.logger.wrapProfiler
 
 interface BugReportParser {
   fun parseBugReport(bugreportPath: String, bugReportText: String, progressReporter: ProgressReporter): BugReport
+
+  companion object {
+    const val BUGREPORT_MARKER = "Bugreport format version:"
+
+    @JvmStatic
+    fun isBugReport(text: String): Boolean {
+      return text.contains(BUGREPORT_MARKER)
+    }
+  }
 }
 
 class BugReportParserImpl(private val sectionParsers: List<BugReportSectionParser>) : BugReportParser {
