@@ -160,4 +160,98 @@ class LogViewerPresenterFakeTests {
     assertEquals(filter1, filters?.get(1))
     verify(mockView).configureFiltersList(fakeFiltersRepository.currentlyOpenedFilters)
   }
+
+  @Test
+  fun testRemoveOneNotAppliedFilter() {
+    val filter1 = Filter("Name1", "Pattern1", Color.BLUE, LogLevel.DEBUG)
+    val filter2 = Filter("Name2", "Pattern2", Color.RED, LogLevel.DEBUG)
+
+    filter1.isApplied = false
+    filter2.isApplied = false
+
+    fakeFiltersRepository.addGroup("testGroup")
+    fakeFiltersRepository.addFilter("testGroup", filter1)
+    fakeFiltersRepository.addFilter("testGroup", filter2)
+
+    presenter.removeFilters("testGroup", intArrayOf(0))
+
+    val remainingFilters = fakeFiltersRepository.currentlyOpenedFilters["testGroup"]
+    assertEquals(1, remainingFilters?.size)
+    assertEquals(filter2, remainingFilters?.get(0))
+
+    verify(mockView, never()).showFilteredLogs(anyOrNull())
+    verify(mockView).configureFiltersList(fakeFiltersRepository.currentlyOpenedFilters)
+  }
+
+  @Test
+  fun testRemoveOneAppliedFilter() {
+    val filter1 = Filter("Name1", "Pattern1", Color.BLUE, LogLevel.DEBUG)
+    val filter2 = Filter("Name2", "Pattern2", Color.RED, LogLevel.DEBUG)
+
+    filter1.isApplied = true
+    filter2.isApplied = false
+
+    fakeFiltersRepository.addGroup("testGroup")
+    fakeFiltersRepository.addFilter("testGroup", filter1)
+    fakeFiltersRepository.addFilter("testGroup", filter2)
+
+    presenter.removeFilters("testGroup", intArrayOf(0))
+
+    val remainingFilters = fakeFiltersRepository.currentlyOpenedFilters["testGroup"]
+    assertEquals(1, remainingFilters?.size)
+    assertEquals(filter2, remainingFilters?.get(0))
+
+    verify(mockView, times(1)).showFilteredLogs(anyOrNull())
+    verify(mockView).configureFiltersList(fakeFiltersRepository.currentlyOpenedFilters)
+  }
+
+  @Test
+  fun testRemoveTwoNotAppliedFilters() {
+    val filter1 = Filter("Name1", "Pattern1", Color.BLUE, LogLevel.DEBUG)
+    val filter2 = Filter("Name2", "Pattern2", Color.RED, LogLevel.DEBUG)
+    val filter3 = Filter("Name3", "Pattern3", Color.GREEN, LogLevel.DEBUG)
+
+    filter1.isApplied = false
+    filter2.isApplied = false
+    filter3.isApplied = false
+
+    fakeFiltersRepository.addGroup("testGroup")
+    fakeFiltersRepository.addFilter("testGroup", filter1)
+    fakeFiltersRepository.addFilter("testGroup", filter2)
+    fakeFiltersRepository.addFilter("testGroup", filter3)
+
+    presenter.removeFilters("testGroup", intArrayOf(0, 1))
+
+    val remainingFilters = fakeFiltersRepository.currentlyOpenedFilters["testGroup"]
+    assertEquals(1, remainingFilters?.size)
+    assertEquals(filter3, remainingFilters?.get(0))
+
+    verify(mockView, never()).showFilteredLogs(anyOrNull())
+    verify(mockView).configureFiltersList(fakeFiltersRepository.currentlyOpenedFilters)
+  }
+
+  @Test
+  fun testRemoveTwoFiltersOneApplied() {
+    val filter1 = Filter("Name1", "Pattern1", Color.BLUE, LogLevel.DEBUG)
+    val filter2 = Filter("Name2", "Pattern2", Color.RED, LogLevel.DEBUG)
+    val filter3 = Filter("Name3", "Pattern3", Color.GREEN, LogLevel.DEBUG)
+
+    filter1.isApplied = true
+    filter2.isApplied = false
+    filter3.isApplied = false
+
+    fakeFiltersRepository.addGroup("testGroup")
+    fakeFiltersRepository.addFilter("testGroup", filter1)
+    fakeFiltersRepository.addFilter("testGroup", filter2)
+    fakeFiltersRepository.addFilter("testGroup", filter3)
+
+    presenter.removeFilters("testGroup", intArrayOf(0, 1))
+
+    val remainingFilters = fakeFiltersRepository.currentlyOpenedFilters["testGroup"]
+    assertEquals(1, remainingFilters?.size)
+    assertEquals(filter3, remainingFilters?.get(0))
+
+    verify(mockView, times(1)).showFilteredLogs(anyOrNull())
+    verify(mockView).configureFiltersList(fakeFiltersRepository.currentlyOpenedFilters)
+  }
 }
