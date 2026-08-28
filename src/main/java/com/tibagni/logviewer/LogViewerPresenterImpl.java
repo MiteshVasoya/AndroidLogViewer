@@ -211,7 +211,7 @@ public class LogViewerPresenterImpl extends AsyncPresenter implements LogViewerP
       String[] date = timestampParts[0].split("-");
       String[] time = timestampParts.length > 1 ?
           // Allow the user to use ':' or '.' for time portion. In case it is a copy of what is in the logcat
-          timestampParts[1].replaceAll("\\.", ":").split(":") :
+          timestampParts[1].replace(".", ":").split(":") :
           new String[]{};
 
       if (date.length != 2) throw new IllegalArgumentException("Invalid date!");

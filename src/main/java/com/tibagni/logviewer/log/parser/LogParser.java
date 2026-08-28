@@ -204,7 +204,7 @@ public class LogParser {
         Logger.info("Found a potential bugreport: " + logPath);
 
         // Make sure to remove all '\r' so it does not get in the way of the parsers
-        String bugReportText = logText.replaceAll("\r", "");
+        String bugReportText = logText.replace("\r", "");
         potentialBugReports.put(logPath, bugReportText);
       }
     }

@@ -1,5 +1,7 @@
 package com.tibagni.logviewer.util;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.tibagni.logviewer.logger.Logger;
 
 import java.security.MessageDigest;
@@ -44,7 +46,7 @@ public class CommonUtils {
       stackTrace.append(element.toString()).append("\n");
     }
 
-    byte[] bytes = stackTrace.toString().getBytes();
+    byte[] bytes = stackTrace.toString().getBytes(UTF_8);
 
     try {
       MessageDigest digest = MessageDigest.getInstance("SHA-256");

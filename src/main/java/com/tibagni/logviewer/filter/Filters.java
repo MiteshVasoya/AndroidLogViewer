@@ -4,18 +4,20 @@ import com.tibagni.logviewer.ProgressReporter;
 import com.tibagni.logviewer.log.LogEntry;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 
 public class Filters {
 
   private static class Progress {
     public final long totalLogs;
     public final long publishThreshold;
-    public long logsRead;
-    public long logsReadOnProgressPublish;
+    public final LongAdder logsRead = new LongAdder();
+    public final AtomicLong logsReadOnProgressPublish = new AtomicLong(0);
 
     public Progress(long totalLogs) {
       this.totalLogs = totalLogs;
-      this.publishThreshold = totalLogs / 10;
+      this.publishThreshold = Math.max(1, totalLogs / 10);
     }
   }
 
@@ -35,16 +37,17 @@ public class Filters {
         filtered.add(entry);
       }
 
-      // This is called A LOT of times, so we try to publish progress update only after a given threshold
-      // to not impact on performance. We don't care about thread synchronization either as it is not
-      // that important that the progress is completely accurate (since there will be so many iterations
-      // here it will not actually make a difference and the progress will be accurate). We only care about
-      // impacting the least possible in performance here
-      progress.logsRead++;
-      if (progress.logsRead > (progress.logsReadOnProgressPublish + progress.publishThreshold)
-              || progress.logsRead >= progress.totalLogs ) {
-        progress.logsReadOnProgressPublish = progress.logsRead;
-        pr.onProgress((int)progress.logsRead * 100 / input.size(), "Applying filters...");
+      // Increment progress atomically using LongAdder to prevent false-sharing on hot cache lines.
+      progress.logsRead.increment();
+      long currentLogsRead = progress.logsRead.sum();
+      long lastPublished = progress.logsReadOnProgressPublish.get();
+      if (currentLogsRead > (lastPublished + progress.publishThreshold)
+              || currentLogsRead >= progress.totalLogs ) {
+        // Atomic compareAndSet prevents multiple threads from triggering overlapping progress updates.
+        if (progress.logsReadOnProgressPublish.compareAndSet(lastPublished, currentLogsRead)) {
+          long total = progress.totalLogs > 0 ? progress.totalLogs : 1;
+          pr.onProgress((int) (currentLogsRead * 100 / total), "Applying filters...");
+        }
       }
     });
     Collections.sort(filtered);

@@ -183,7 +183,7 @@ public class Filter implements LogEntryFilter {
 
   public String serializeFilter() {
     return String.format("%s,%s,%d,%d:%d:%d,%s",
-        name.replaceAll(",", " "),
+        name.replace(",", " "),
         StringUtils.encodeBase64(getPatternString()),
         flags,
         color.getRed(),
